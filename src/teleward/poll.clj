@@ -64,22 +64,27 @@
           (save-offset offset-file new-offset))
 
         (processing/process-updates context updates)
-        (processing/process-pending-users context)
+        #_(processing/process-pending-users context)
 
         (recur new-offset)))))
 
 
-#_
-(
+(comment
 
- (def -telegram
-   {:token "..."
-    :user-agent "Clojure 1.10.3"
-    :timeout (* 65 1000)
-    :keepalive (* 65 1000)})
+  (def -telegram
+    {:token "7054243567:AAFW_C_0MvVzd3lqyUZYGYszt2qaJuPEe9I"
+     :user-agent "Clojure 1.10.3"
+     :timeout (* 65 1000)
+     :keepalive (* 65 1000)})
 
- (def -config {:telegram -telegram})
+  (def -config {:telegram -telegram
+                :polling {:offset-file "/tmp/TELEGRAM_OFFSET"}})
 
- (run-polling -config)
+  (future (run-polling -config))
 
- )
+  ;; Via the API's getFile you can now get the required path information for the file:
+  ;; https://api.telegram.org/bot<bot_token>/getFile?file_id=the_file_id
+  ;; This will return an object with file_id, file_size and file_path. You can then use the file_path to download the file:
+  ;; https://api.telegram.org/file/bot<token>/<file_path>
+
+)

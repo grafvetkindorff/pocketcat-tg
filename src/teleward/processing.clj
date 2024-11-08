@@ -3,6 +3,7 @@
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [teleward.captcha :as captcha]
+   [teleward.gemini :as gemini]
    [teleward.state :as state]
    [teleward.telegram :as tg]
    [teleward.template :as template]
@@ -224,6 +225,67 @@
       (command? message)
       (process-commands context message))))
 
+(comment
+  (def test-message (atom {}))
+
+  @test-message
+
+  (-> @test-message :message)
+
+  (def res (tg/download-file (:telegram (-> @test-message :context)) ""))
+
+  (def gemini-res
+   (gemini/ask-image
+    (gemini/base64-encode (gemini/buffered-input-stream-to-bytes res))))
+
+  (first @gemini-res)
+
+  )
+
+(defn process-document
+  [context message]
+
+  (let [{:keys [state]}
+        context
+
+        {:keys [message_id
+                document
+                chat
+                from
+                ]}
+        message
+
+        {:keys [file_id mime_type]}
+        document
+
+        {chat-id :id}
+        chat
+
+        {user-id :id}
+        from
+
+        {:keys [locked?]}
+        (state/get-attrs state chat-id user-id)]
+
+    (cond
+
+      ;; Delete any message from a locked user. Sometimes,
+      ;; spammers sneak between the "join" and "mute" events.
+      locked?
+      (delete-message context chat-id message_id)
+
+      (= mime_type "image/jpeg")
+      (let [result (tg/download-file (:telegram context) file_id)
+            gemini-res
+            @(->> result
+                  gemini/buffered-input-stream-to-bytes
+                  gemini/base64-encode
+                  gemini/ask-image)]
+        (tg/send-message (:telegram context)
+                         chat-id
+                         (first gemini-res)
+                         {:reply-to-message-id message_id})))))
+
 
 (defn process-message
   [context message]
@@ -236,6 +298,7 @@
 
         {:keys [text
                 date
+                document
                 new_chat_members]}
         message]
 
@@ -246,7 +309,10 @@
         (process-new-members context message))
 
       text
-      (process-text context message))))
+      (process-text context message)
+
+      document
+      (process-document context message))))
 
 
 (defn process-callback-query

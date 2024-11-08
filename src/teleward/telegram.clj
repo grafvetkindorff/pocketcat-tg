@@ -51,8 +51,9 @@
         (filter-params params)
 
         url
-        (format "https://api.telegram.org/bot%s/%s"
-                token (name api-method))
+        (if (keyword? api-method)
+          (format "https://api.telegram.org/bot%s/%s" token (name api-method))
+          (format "https://api.telegram.org/file/bot%s/%s" token api-method))
 
         request
         {:url url
@@ -95,26 +96,23 @@
       (let [{:keys [content-type]}
             headers
 
-            json?
-            (some-> content-type
-                    (str/starts-with? "application/json"))
-
-            ;; parse JSON manually as Http Kit cannot
-            body-json
-            (if json?
-              (-> body io/reader (json/decode-stream keyword))
-              (throw (ex-info (format "Telegram response was not JSON: %s" content-type)
-                              {:http-status status
-                               :http-method http-method
-                               :http-headers headers
-                               :api-method api-method
-                               :api-params params})))
+            response-body
+            (cond
+              (str/starts-with? content-type "application/json") (-> body io/reader (json/decode-stream keyword))
+              (str/starts-with? content-type "application/octet-stream") {:ok true
+                                                                          :result (io/input-stream body)}
+              :else (throw (ex-info (format "Telegram response was not JSON: %s" content-type)
+                                    {:http-status status
+                                     :http-method http-method
+                                     :http-headers headers
+                                     :api-method api-method
+                                     :api-params params})))
 
             {:keys [ok
                     result
                     error_code
                     description]}
-            body-json]
+            response-body]
 
         (if ok
           result
@@ -205,10 +203,19 @@
   "https://core.telegram.org/bots/api#deletemessage"
   [config chat-id message-id]
   (api-request config
-                :deleteMessage
-                :post
-                {:chat_id chat-id
-                 :message_id message-id}))
+               :deleteMessage
+               :post
+               {:chat_id chat-id
+                :message_id message-id}))
+
+(defn download-file
+  [config file-id]
+  (let [{:keys [file_path]}
+        (api-request config
+                     :getFile
+                     :get
+                     {:file_id file-id})]
+    (api-request config file_path :get nil)))
 
 
 (def chat-permission-types
