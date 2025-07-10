@@ -1,9 +1,12 @@
 (ns teleward.processing
   (:require
+   [clojure.pprint :as pprint]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [teleward.captcha :as captcha]
+   [teleward.chatgpt :as chatgpt]
    [teleward.gemini :as gemini]
+   [teleward.http :refer [base64-encode buffered-input-stream-to-bytes]]
    [teleward.state :as state]
    [teleward.telegram :as tg]
    [teleward.template :as template]
@@ -276,15 +279,16 @@
 
       (= mime_type "image/jpeg")
       (let [result (tg/download-file (:telegram context) file_id)
-            gemini-res
+            res
             @(->> result
-                  gemini/buffered-input-stream-to-bytes
-                  gemini/base64-encode
-                  gemini/ask-image)]
+                  buffered-input-stream-to-bytes
+                  base64-encode
+                  chatgpt/ask-image)]
         (tg/send-message (:telegram context)
                          chat-id
-                         (first gemini-res)
-                         {:reply-to-message-id message_id})))))
+                         (str "```JSON\n" (with-out-str (pprint/pprint (first res))) "\n```")
+                         {:parse-mode "MarkdownV2"
+                          :reply-to-message-id message_id})))))
 
 
 (defn process-message

@@ -1,27 +1,11 @@
 (ns teleward.gemini
   (:require
    [cheshire.core :as json]
-   [org.httpkit.client :as http-kit])
-  (:import (java.util Base64)
-           (java.io BufferedInputStream ByteArrayOutputStream)))
+   [org.httpkit.client :as http-kit]))
 
 
 (def api-key "")
 
-
-(defn buffered-input-stream-to-bytes [input-stream]
-  (with-open [bis (BufferedInputStream. input-stream)
-              baos (ByteArrayOutputStream.)]
-    (let [buffer (byte-array 1024)]
-      (loop []
-        (let [read (.read bis buffer)]
-          (when (pos? read)
-            (.write baos buffer 0 read)
-            (recur))))
-      (.toByteArray baos))))
-
-(defn base64-encode [file-bytes]
-  (.encodeToString (Base64/getEncoder) file-bytes))
 
 (defn make-query-params
   [data]
@@ -34,8 +18,9 @@
                                :properties {:currency {:type "STRING"}
                                             :amount {:type "NUMBER"}
                                             :categories {:type "ARRAY"
-                                                         :items [{:type "STRING"
-                                                                  :confidence {:type "NUMBER"}}]}}}}}})
+                                                         :items {:type "OBJECT"
+                                                                 :properties {:category {:type "STRING"}
+                                                                              :confidence {:type "NUMBER"}}}}}}}}})
 
 (defn make-options
   [data]

@@ -1,6 +1,7 @@
 (ns teleward.poll
   (:require
    [cheshire.core :as json]
+   [clojure.java.io :as io]
    [clojure.tools.logging :as log]
    [teleward.processing :as processing]
    [teleward.state-atom :as state-atom]
@@ -11,12 +12,12 @@
 (defn save-offset [offset-file offset]
   (spit offset-file (str offset)))
 
-
 (defn load-offset [offset-file]
-  (try
+  (if (-> offset-file
+          io/file
+          .exists)
     (-> offset-file slurp Long/parseLong)
-    (catch Throwable _
-      nil)))
+    (spit offset-file "")))
 
 
 (defn run-polling
