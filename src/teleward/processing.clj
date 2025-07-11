@@ -11,7 +11,8 @@
    [teleward.telegram :as tg]
    [teleward.template :as template]
    [teleward.time :refer [unix-now]]
-   [teleward.util :refer [with-safe-log]]))
+   [teleward.util :refer [with-safe-log]]
+   [teleward.wise :refer [get-balance-statement]]))
 
 
 (defn almost-now
@@ -174,6 +175,9 @@
 (defn health-command? [message]
   (some-> message :text (str/starts-with? "/health")))
 
+(defn get-wise-balance-command? [message]
+  (some-> message :text (str/starts-with? "/get-wise-balance")))
+
 
 (defn process-commands
   [context message]
@@ -195,7 +199,13 @@
         (tg/send-message telegram
                          chat-id
                          "OK"
-                         {:reply-to-message-id message_id})))))
+                         {:reply-to-message-id message_id})))
+      (get-wise-balance-command? message)
+      (with-safe-log
+        (tg/send-message telegram
+                         chat-id
+                         (mapv #(select-keys % [:currency :cashAmount]) (get-balance-statement))
+                         {:reply-to-message-id message_id}))))
 
 
 (defn process-text

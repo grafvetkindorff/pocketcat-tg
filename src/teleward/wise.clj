@@ -12,7 +12,7 @@
   []
   (http-kit/get
    "https://api.transferwise.com/v2/profiles"
-   (make-options api-key {} nil)
+   (make-options api-key nil nil)
    (fn [{:keys [_status _headers body error]}] ;; asynchronous response handling
      (if error
        (println "Failed, exception is " error)
@@ -49,6 +49,11 @@
          (println "body is " body)
          (-> (cheshire.core/parse-string body true)))))))
 
+(defn get-balance-statement []
+  (let [profile-id @(get-profile-id)]
+    @(get-balances profile-id)))
+
+(get-balance-statement)
 
 
 (comment
